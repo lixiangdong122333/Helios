@@ -2,6 +2,9 @@
   "name": "helios-cloud-logging-mcp",
   "version": "0.1.0",
   "private": true,
+  "files": [
+    "dist"
+  ],
   "description": "A production-oriented MCP server for querying and aggregating Google Cloud Logging data.",
   "type": "module",
   "bin": {

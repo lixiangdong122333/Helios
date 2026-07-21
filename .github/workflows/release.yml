@@ -1,0 +1,157 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing SemVer tag to release"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Resolve release tag
+        id: release
+        shell: pwsh
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_TAG: ${{ github.ref_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $Tag = if ($env:EVENT_NAME -eq "workflow_dispatch") { $env:INPUT_TAG } else { $env:EVENT_TAG }
+          if ($Tag -notmatch '^v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$') {
+            throw "Release tag must match vMAJOR.MINOR.PATCH or a SemVer prerelease tag: $Tag"
+          }
+          "tag=$Tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Validate tag and source commit
+        shell: pwsh
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          git fetch origin --force --tags
+          if ($LASTEXITCODE -ne 0) { throw "Unable to fetch release tags." }
+          git switch --detach $env:TAG
+          if ($LASTEXITCODE -ne 0) { throw "Release tag $env:TAG does not exist." }
+          git fetch origin main --no-tags
+          if ($LASTEXITCODE -ne 0) { throw "Unable to fetch origin/main." }
+
+          $PackageVersion = (node -p "require('./package.json').version").Trim()
+          if ($LASTEXITCODE -ne 0) { throw "Unable to read package version." }
+          $ExpectedTag = "v$PackageVersion"
+          if ($env:TAG -ne $ExpectedTag) {
+            throw "Tag $env:TAG does not match package version $ExpectedTag."
+          }
+
+          $TagCommit = (git rev-list -n 1 $env:TAG).Trim()
+          $MainTip = (git rev-parse origin/main).Trim()
+          git merge-base --is-ancestor $TagCommit $MainTip
+          if ($LASTEXITCODE -ne 0) {
+            throw "Release tag $env:TAG must point to a commit contained in origin/main."
+          }
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check types
+        run: npm run check
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build application
+        run: npm run build
+
+      - name: Create npm package archive
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path release-assets -Force | Out-Null
+          npm pack --pack-destination release-assets
+          if ($LASTEXITCODE -ne 0) { throw "Unable to create the npm package archive." }
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-assets
+          path: release-assets/*.tgz
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish GitHub release
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@v8
+        with:
+          name: release-assets
+          path: release-assets
+
+      - name: Create GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.verify.outputs.tag }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $false
+          $Assets = @(Get-ChildItem -LiteralPath release-assets -Filter *.tgz -File)
+          if ($Assets.Count -eq 0) { throw "No release assets were downloaded." }
+
+          gh release view $env:TAG --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -eq 0) {
+            $UploadArguments = @("release", "upload", $env:TAG, "--repo", $env:GITHUB_REPOSITORY, "--clobber")
+            $UploadArguments += $Assets.FullName
+            & gh @UploadArguments
+            if ($LASTEXITCODE -ne 0) { throw "Unable to update release assets for $env:TAG." }
+            exit 0
+          }
+
+          $CreateArguments = @(
+            "release", "create", $env:TAG,
+            "--repo", $env:GITHUB_REPOSITORY,
+            "--verify-tag",
+            "--generate-notes",
+            "--title", "Helios $env:TAG"
+          )
+          if ($env:TAG.Contains("-")) {
+            $CreateArguments += "--prerelease"
+          }
+          $CreateArguments += $Assets.FullName
+          & gh @CreateArguments
+          if ($LASTEXITCODE -ne 0) { throw "Unable to create GitHub Release $env:TAG." }
