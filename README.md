@@ -336,6 +336,10 @@ npm run start:http
 
 完成构建后，`npm run smoke:mcp` 会分别启动生产构建的 STDIO 与本地临时 HTTP 服务，通过真实 MCP 客户端各执行一次同样的只读查询；HTTP 使用仅存在于子进程内的随机 Bearer Token。输出只包含项目、工具数量和返回条数。
 
+## 分支与发布
+
+分支、Pull Request、提交格式和发布流程见 [CONTRIBUTING.md](CONTRIBUTING.md)。项目使用单主干 GitHub Flow：`main` 保持可发布，功能通过短生命周期分支和 Pull Request 合并。将与 `package.json` 版本一致的 SemVer 标签（例如 `v0.1.0`）推送到 GitHub 后，Release 工作流会重新验证、构建并自动创建 GitHub Release。
+
 架构、安全模型和验证策略见 [docs/architecture.md](docs/architecture.md)。
 
 ## 官方参考
