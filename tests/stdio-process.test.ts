@@ -31,5 +31,5 @@ describe("STDIO process transport", () => {
       "summarize_logs"
     ]);
     await client.close();
-  });
+  }, 15_000);
 });

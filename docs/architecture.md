@@ -178,6 +178,10 @@ Docker 镜像包含编译后的 `dist` 和生产依赖，以 `node` 非 root 用
 
 公网部署需要托管 HTTPS、网络访问控制、速率限制、Secret 注入和最小权限工作负载身份。无状态实例可以水平扩展；当前没有共享 Session 存储需求。
 
+Release 还提供 Node.js 24 SEA。构建先用 esbuild 把 ESM 应用、protobuf JSON、客户端配置和生产依赖收敛为单个 CommonJS 文件，并拒绝除 Node 内置模块外的任何 external；随后使用同一原生 runner 上的 Node 二进制生成和注入 SEA blob。`useSnapshot` 和 `useCodeCache` 均关闭，避免服务启动副作用和动态 `import()` 限制。Windows x64、glibc Linux x64/arm64 和 macOS arm64 分别原生构建；macOS x64 与 Alpine 不属于当前支持矩阵。
+
+每个平台归档携带 Node.js 许可证和实际 bundle 输入的第三方许可证。Windows 产物在没有项目签名证书时保持未签名；macOS 产物在注入后执行 ad-hoc 签名，但不等同于 Developer ID 签名或 notarization。
+
 ## 10. 可观测性
 
 Helios 自身日志不应包含 Cloud Logging 完整 payload、Bearer Token 或 JWT。建议记录：
@@ -200,6 +204,7 @@ STDIO 和 HTTP 模式的结构化诊断日志都输出到 `stderr`；STDIO 的 `
 5. 认证测试：静态 Token、错误 Token、OIDC 签名、audience、有效期处理和 JWKS 读取。
 6. 传输测试：STDIO 协议输出隔离；HTTP 未认证拒绝、CORS、认证前 429 和无状态 MCP 请求。
 7. 适配器测试：使用假 Cloud Logging 客户端验证分页、超时和错误映射，不依赖真实云资源。
+8. SEA 测试：在每个发布目标的原生 runner 上执行 `--help`、STDIO 初始化、工具枚举、Google SDK/ADC 受控错误路径、HTTP 健康检查和认证 MCP 初始化。
 
 真实 GCP 验证应作为显式 smoke test，在专用项目和短时间窗口运行，不进入默认单元测试。验证前确认 API、IAM、ADC 和预算告警，测试后审查 Cloud Audit Logs。
 
@@ -211,6 +216,7 @@ npm run check
 npm test
 npm run test:coverage
 npm run build
+npm run build:sea
 ```
 
 ## 12. 主要权衡和后续演进
@@ -220,6 +226,8 @@ npm run build
 - 静态 Token 部署容易，但缺少细粒度声明和集中撤销体验；生产默认应迁移到 OIDC。
 - 当前工具级授权一致。未来多租户场景需要把认证主体映射到允许的项目/过滤器，并在服务端强制执行，不能依赖模型提示。
 - 若 MCP 客户端需要端到端 OAuth 登录、动态客户端注册或授权服务器元数据，应与成熟身份提供商/API Gateway 集成；Helios 已提供资源服务器侧 RFC 9728 元数据。
+- SEA 减少最终用户的 Node.js 安装成本，但 Node.js 24 仍将该能力标记为 Active development，且可执行文件与操作系统和架构绑定；npm 包和容器继续作为未覆盖平台的回退分发方式。
+- 当前 SEA 覆盖 Helios 使用的 Cloud Logging 生成客户端路径。`@grpc/grpc-js` 未被 Helios 暴露的 ORCA/Channelz 可选能力仍会从文件系统加载 `.proto`；未来若启用这些能力，必须将对应 proto 作为 SEA asset 注入并增加专门的运行测试。
 
 ## 13. 官方依据
 
@@ -231,3 +239,4 @@ npm run build
 - [Cloud Logging IAM](https://cloud.google.com/iam/docs/roles-permissions/logging)
 - [Cloud Logging quotas](https://cloud.google.com/logging/quotas)
 - [Cloud Logging pricing](https://cloud.google.com/logging/pricing)
+- [Node.js single executable applications](https://nodejs.org/docs/latest-v24.x/api/single-executable-applications.html)

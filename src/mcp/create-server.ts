@@ -12,6 +12,7 @@ import { severityValues } from "../domain/types.js";
 import { HeliosError } from "../errors.js";
 import { auditHash, type Logger } from "../logger.js";
 import { unlimitedInvocationLimiter, type InvocationLimiter } from "../limits.js";
+import { HELIOS_VERSION } from "../version.js";
 
 export interface HeliosServerDependencies {
   queryService: LogQueryService;
@@ -53,7 +54,7 @@ const annotations = {
 } as const;
 
 export function createHeliosMcpServer(dependencies: HeliosServerDependencies): McpServer {
-  const server = new McpServer({ name: "helios-cloud-logging", version: "0.1.0" });
+  const server = new McpServer({ name: "helios-cloud-logging", version: HELIOS_VERSION });
 
   server.registerTool(
     "query_logs",

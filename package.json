@@ -1,6 +1,6 @@
 {
   "name": "helios-cloud-logging-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "files": [
     "dist"
@@ -15,6 +15,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "build:sea": "node scripts/build-sea.mjs",
     "check": "tsc --noEmit",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
@@ -22,6 +23,7 @@
     "start:http": "node dist/index.js --transport http",
     "smoke:adc": "tsx scripts/smoke-adc.ts",
     "smoke:mcp": "tsx scripts/smoke-mcp.ts",
+    "smoke:sea": "tsx scripts/smoke-sea.ts",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage"
   },
@@ -36,6 +38,9 @@
     "@types/express": "5.0.6",
     "@types/node": "24.10.15",
     "@vitest/coverage-v8": "4.1.10",
+    "encoding": "0.1.13",
+    "esbuild": "0.28.1",
+    "postject": "1.0.0-alpha.6",
     "tsx": "4.23.1",
     "typescript": "7.0.2",
     "vitest": "4.1.10"
