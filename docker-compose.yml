@@ -1,0 +1,42 @@
+services:
+  helios:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: helios-cloud-logging-mcp:local
+    command:
+      - --transport
+      - http
+    env_file:
+      - .env
+    environment:
+      HELIOS_TRANSPORT: http
+      HELIOS_HTTP_HOST: 0.0.0.0
+      HELIOS_HTTP_ALLOWED_HOSTS: "${HELIOS_HTTP_ALLOWED_HOSTS:-127.0.0.1,localhost}"
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/gcp_adc
+    ports:
+      - "127.0.0.1:${HELIOS_HTTP_PORT:-48080}:${HELIOS_HTTP_PORT:-48080}"
+    secrets:
+      - source: gcp_adc
+        target: gcp_adc
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:' + (process.env.HELIOS_HTTP_PORT || '48080') + '/readyz').then(response => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1));
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+secrets:
+  gcp_adc:
+    file: ${HELIOS_ADC_FILE:?Set HELIOS_ADC_FILE to an Application Default Credentials JSON file}

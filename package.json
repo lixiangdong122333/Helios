@@ -1,0 +1,40 @@
+{
+  "name": "helios-cloud-logging-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A production-oriented MCP server for querying and aggregating Google Cloud Logging data.",
+  "type": "module",
+  "bin": {
+    "helios-cloud-logging-mcp": "dist/index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "check": "tsc --noEmit",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "start:stdio": "node dist/index.js --transport stdio",
+    "start:http": "node dist/index.js --transport http",
+    "smoke:adc": "tsx scripts/smoke-adc.ts",
+    "smoke:mcp": "tsx scripts/smoke-mcp.ts",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@google-cloud/logging": "11.3.0",
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "express": "5.2.1",
+    "jose": "6.2.3",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/express": "5.0.6",
+    "@types/node": "24.10.15",
+    "@vitest/coverage-v8": "4.1.10",
+    "tsx": "4.23.1",
+    "typescript": "7.0.2",
+    "vitest": "4.1.10"
+  }
+}
