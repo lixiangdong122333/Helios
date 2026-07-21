@@ -12,7 +12,7 @@ Helios uses a trunk-based GitHub Flow:
 
 ## Pull requests
 
-Pull requests must pass the `Build and test` and `Build container` checks. Use a squash merge so `main` has a readable, linear history. Pull request titles and squash commits should follow Conventional Commits, for example:
+Pull requests must pass `Build and test`, `Build container`, and every `Build SEA (...)` matrix check. Use a squash merge so `main` has a readable, linear history. Pull request titles and squash commits should follow Conventional Commits, for example:
 
 ```text
 feat(query): add trace-aware resource filtering
@@ -29,11 +29,11 @@ Releases use Semantic Versioning and immutable tags in the form `vMAJOR.MINOR.PA
 ```powershell
 git switch main
 git pull --ff-only
-git tag --annotate v0.1.0 --message "Release v0.1.0"
-git push origin v0.1.0
+git tag --annotate v0.2.0 --message "Release v0.2.0"
+git push origin v0.2.0
 ```
 
-The release workflow reruns the type check, tests, and build before creating the GitHub Release. It marks tags containing a prerelease suffix such as `v1.0.0-rc.1` as prereleases and uploads the npm package archive.
+The release workflow reruns the type check, tests, and build before creating the GitHub Release. It marks tags containing a prerelease suffix such as `v1.0.0-rc.1` as prereleases. Every release keeps the npm package archive and adds native-runner SEA archives for Windows x64, glibc Linux x64/arm64, and macOS arm64, plus `SHA256SUMS.txt`.
 
 Do not move or delete release tags. To correct a release, publish a new patch version.
 
@@ -44,6 +44,8 @@ npm ci
 npm run check
 npm test
 npm run build
+npm run build:sea
+npm run smoke:sea -- <path-to-sea-executable>
 ```
 
-Cloud Logging smoke tests require ADC and a project with `logging.logEntries.list` permission; they are intentionally not part of the default pull request gate.
+`smoke:sea` points ADC at a deliberately missing file, so it can exercise the bundled Google client and controlled error path without contacting Cloud Logging; it is safe for the default pull request gate. Live Cloud Logging smoke tests require ADC and a project with `logging.logEntries.list` permission and are intentionally not part of that gate.

@@ -22,6 +22,46 @@ Helios 只读访问 Cloud Logging，不写入、修改或删除日志。Google C
 
 依赖版本由 `package-lock.json` 锁定，项目使用 npm。
 
+## Release 可执行文件
+
+GitHub Release 同时提供 npm `.tgz` 和基于 Node.js 24 SEA 构建的独立可执行文件。SEA 归档不需要预先安装 Node.js 或 npm，但 Google Cloud ADC、Cloud Logging API 和 IAM 权限要求不变。
+
+| 归档目标 | 运行环境 |
+| --- | --- |
+| `windows-x64` | 64 位 Windows |
+| `linux-x64-glibc` | 64 位 glibc Linux |
+| `linux-arm64-glibc` | arm64 glibc Linux |
+| `macos-arm64` | Apple Silicon macOS |
+
+Windows PowerShell 下载和解压示例：
+
+```powershell
+$Version = "0.2.0"
+$Target = "windows-x64"
+$Archive = "helios-cloud-logging-mcp-v$Version-$Target.zip"
+Invoke-WebRequest -Uri "https://github.com/lixiangdong122333/Helios/releases/download/v$Version/$Archive" -OutFile $Archive
+Expand-Archive -LiteralPath $Archive -DestinationPath . -Force
+Set-Location "helios-cloud-logging-mcp-v$Version-$Target"
+.\helios-cloud-logging-mcp.exe --help
+```
+
+PowerShell 7 在 Linux 或 macOS 上的示例：
+
+```powershell
+$Version = "0.2.0"
+$Target = "linux-x64-glibc" # 或 linux-arm64-glibc、macos-arm64
+$Archive = "helios-cloud-logging-mcp-v$Version-$Target.tar.gz"
+Invoke-WebRequest -Uri "https://github.com/lixiangdong122333/Helios/releases/download/v$Version/$Archive" -OutFile $Archive
+tar -xzf $Archive
+Set-Location "helios-cloud-logging-mcp-v$Version-$Target"
+chmod +x ./helios-cloud-logging-mcp
+./helios-cloud-logging-mcp --help
+```
+
+完成下面的 ADC 和环境变量配置后，可执行文件可直接作为 MCP STDIO 进程启动，或使用 `--transport http` 启动 HTTP 服务。归档内包含 README、对应 Node.js 版本的许可证和实际 bundle 依赖的第三方许可证；Release 根目录的 `SHA256SUMS.txt` 用于校验下载文件。
+
+Node.js SEA 仍处于 Active development，并且产物与平台、架构绑定。Node.js 24 官方未支持 macOS x64 SEA，也未支持 Alpine；这些环境请使用 npm `.tgz`、Docker 或源码方式。Windows SEA 在没有项目代码签名证书时为未签名文件，macOS SEA 使用 ad-hoc 签名但未经过 Apple notarization。
+
 ## MCP 工具
 
 | 工具 | 用途 |
@@ -165,6 +205,8 @@ CLI 参数 `--transport stdio|http` 的优先级高于 `HELIOS_TRANSPORT`。
   }
 }
 ```
+
+使用 SEA Release 时，将 `command` 直接改为解压后的可执行文件绝对路径，并保留 `args: ["--transport", "stdio"]`；不再需要 `node` 或 `dist/index.js`。
 
 本地客户端进程需要能够继承 ADC。STDIO 模式没有额外的 MCP 身份认证层，其安全边界是本机账号、客户端配置和进程权限。协议输出只写入 `stdout`；诊断信息写入 `stderr`，以免破坏 MCP 消息流。
 
@@ -326,6 +368,8 @@ npm run check
 npm test
 npm run test:coverage
 npm run build
+npm run build:sea
+npm run smoke:sea -- <path-to-sea-executable>
 npm run smoke:adc
 npm run smoke:mcp
 npm run start:stdio
@@ -336,9 +380,11 @@ npm run start:http
 
 完成构建后，`npm run smoke:mcp` 会分别启动生产构建的 STDIO 与本地临时 HTTP 服务，通过真实 MCP 客户端各执行一次同样的只读查询；HTTP 使用仅存在于子进程内的随机 Bearer Token。输出只包含项目、工具数量和返回条数。
 
+`npm run smoke:sea -- <path>` 会验证 SEA 的帮助输出、版本、STDIO/HTTP MCP 初始化、工具列表和健康端点，并将 ADC 指向故意不存在的文件来覆盖 Google 客户端的受控错误路径；它不会连接 Cloud Logging 或读取真实日志。
+
 ## 分支与发布
 
-分支、Pull Request、提交格式和发布流程见 [CONTRIBUTING.md](CONTRIBUTING.md)。项目使用单主干 GitHub Flow：`main` 保持可发布，功能通过短生命周期分支和 Pull Request 合并。将与 `package.json` 版本一致的 SemVer 标签（例如 `v0.1.0`）推送到 GitHub 后，Release 工作流会重新验证、构建并自动创建 GitHub Release。
+分支、Pull Request、提交格式和发布流程见 [CONTRIBUTING.md](CONTRIBUTING.md)。项目使用单主干 GitHub Flow：`main` 保持可发布，功能通过短生命周期分支和 Pull Request 合并。将与 `package.json` 版本一致的 SemVer 标签（例如 `v0.2.0`）推送到 GitHub 后，Release 工作流会重新验证、在原生 runner 上构建并冒烟测试各平台 SEA、生成校验和，然后自动创建 GitHub Release。
 
 架构、安全模型和验证策略见 [docs/architecture.md](docs/architecture.md)。
 
@@ -351,3 +397,4 @@ npm run start:http
 - [Cloud Logging query language](https://cloud.google.com/logging/docs/view/logging-query-language)
 - [Google Cloud ADC](https://cloud.google.com/docs/authentication/application-default-credentials)
 - [Cloud Logging Node.js API reference](https://cloud.google.com/nodejs/docs/reference/logging/latest)
+- [Node.js single executable applications](https://nodejs.org/docs/latest-v24.x/api/single-executable-applications.html)
