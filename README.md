@@ -1,18 +1,20 @@
 # Helios Cloud Logging MCP
 
-Helios 是一个面向服务监控和故障排查的 Google Cloud Logging MCP Server。它通过统一的 MCP 工具查询一个或多个 Google Cloud 项目中的日志，支持时间范围、Trace ID、服务名、日志摘要和异常聚合。
+**English** | [简体中文](README_zh.md)
 
-项目同时支持两种传输方式：
+Helios is a Google Cloud Logging MCP Server designed for service monitoring and troubleshooting. Through unified MCP tools, it queries logs from one or more Google Cloud projects, supporting time ranges, Trace IDs, service names, log summaries, and exception aggregation.
 
-- `stdio`：适合由本地 MCP 客户端拉起的单用户进程。
-- 无状态 Streamable HTTP：适合团队或远程部署；HTTP 模式强制启用静态 Bearer Token 或 OIDC/JWKS 身份认证。
+The project supports two transport modes:
 
-Helios 只读访问 Cloud Logging，不写入、修改或删除日志。Google Cloud 身份认证完全采用 Application Default Credentials（ADC），不实现自定义 Google 凭据体系。
+- `stdio`: a single-user process launched by a local MCP client.
+- Stateless Streamable HTTP: suited for team or remote deployments; HTTP mode enforces either static Bearer Token or OIDC/JWKS authentication.
 
-## 技术栈
+Helios accesses Cloud Logging read-only; it never writes, modifies, or deletes logs. Google Cloud authentication relies entirely on Application Default Credentials (ADC) — Helios does not implement its own Google credential system.
 
-- Node.js 20 或更高版本
-- TypeScript、ESM、严格类型检查
+## Tech Stack
+
+- Node.js 20 or later
+- TypeScript, ESM, strict type checking
 - `@modelcontextprotocol/sdk` `1.29.0`
 - `@google-cloud/logging` `11.3.0`
 - Express `5.2.1`
@@ -20,20 +22,20 @@ Helios 只读访问 Cloud Logging，不写入、修改或删除日志。Google C
 - Zod `4.4.3`
 - Vitest `4.1.10`
 
-依赖版本由 `package-lock.json` 锁定，项目使用 npm。
+Dependency versions are locked by `package-lock.json`; the project uses npm.
 
-## Release 可执行文件
+## Release Executables
 
-GitHub Release 同时提供 npm `.tgz` 和基于 Node.js 24 SEA 构建的独立可执行文件。SEA 归档不需要预先安装 Node.js 或 npm，但 Google Cloud ADC、Cloud Logging API 和 IAM 权限要求不变。
+GitHub Releases provide both an npm `.tgz` package and standalone executables built with Node.js 24 SEA. SEA archives require no pre-installed Node.js or npm, but Google Cloud ADC, the Cloud Logging API, and IAM permission requirements remain unchanged.
 
-| 归档目标 | 运行环境 |
+| Archive target | Runtime environment |
 | --- | --- |
-| `windows-x64` | 64 位 Windows |
-| `linux-x64-glibc` | 64 位 glibc Linux |
+| `windows-x64` | 64-bit Windows |
+| `linux-x64-glibc` | 64-bit glibc Linux |
 | `linux-arm64-glibc` | arm64 glibc Linux |
 | `macos-arm64` | Apple Silicon macOS |
 
-Windows PowerShell 下载和解压示例：
+Example download and extraction in Windows PowerShell:
 
 ```powershell
 $Version = "0.2.0"
@@ -45,11 +47,11 @@ Set-Location "helios-cloud-logging-mcp-v$Version-$Target"
 .\helios-cloud-logging-mcp.exe --help
 ```
 
-PowerShell 7 在 Linux 或 macOS 上的示例：
+Example with PowerShell 7 on Linux or macOS:
 
 ```powershell
 $Version = "0.2.0"
-$Target = "linux-x64-glibc" # 或 linux-arm64-glibc、macos-arm64
+$Target = "linux-x64-glibc" # or linux-arm64-glibc, macos-arm64
 $Archive = "helios-cloud-logging-mcp-v$Version-$Target.tar.gz"
 Invoke-WebRequest -Uri "https://github.com/lixiangdong122333/Helios/releases/download/v$Version/$Archive" -OutFile $Archive
 tar -xzf $Archive
@@ -58,47 +60,47 @@ chmod +x ./helios-cloud-logging-mcp
 ./helios-cloud-logging-mcp --help
 ```
 
-完成下面的 ADC 和环境变量配置后，可执行文件可直接作为 MCP STDIO 进程启动，或使用 `--transport http` 启动 HTTP 服务。归档内包含 README、对应 Node.js 版本的许可证和实际 bundle 依赖的第三方许可证；Release 根目录的 `SHA256SUMS.txt` 用于校验下载文件。
+After completing the ADC and environment variable configuration below, the executable can be launched directly as an MCP STDIO process, or as an HTTP service with `--transport http`. Each archive contains the README, licenses for the bundled Node.js version and the third-party dependencies actually bundled, and the `SHA256SUMS.txt` at the Release root verifies downloaded files.
 
-Node.js SEA 仍处于 Active development，并且产物与平台、架构绑定。Node.js 24 官方未支持 macOS x64 SEA，也未支持 Alpine；这些环境请使用 npm `.tgz`、Docker 或源码方式。Windows SEA 在没有项目代码签名证书时为未签名文件，macOS SEA 使用 ad-hoc 签名但未经过 Apple notarization。
+Node.js SEA is still in active development, and its artifacts are platform- and architecture-specific. Node.js 24 officially does not support macOS x64 SEA, nor Alpine; on those environments use the npm `.tgz`, Docker, or build from source. Windows SEA binaries are unsigned when no project code-signing certificate is available; macOS SEA binaries use ad-hoc signing without Apple notarization.
 
-## MCP 工具
+## MCP Tools
 
-| 工具 | 用途 |
+| Tool | Purpose |
 | --- | --- |
-| `query_logs` | 按项目、时间范围、服务、Trace、严重级别、资源类型和全文条件查询日志 |
-| `get_trace_logs` | 获取指定 Trace ID 的关联日志，并按时间整理调用链上下文 |
-| `summarize_logs` | 对受限日志样本生成确定性的严重级别、服务、资源类型和观测时间范围摘要 |
-| `aggregate_exceptions` | 对异常日志进行指纹分组，返回频次、首次/末次出现时间和代表性样本 |
+| `query_logs` | Query logs by project, time range, service, trace, severity, resource type, and full-text condition |
+| `get_trace_logs` | Fetch logs associated with a given Trace ID and organize the call-chain context by time |
+| `summarize_logs` | Produce a deterministic summary of severity levels, services, resource types, and observed time range from a bounded log sample |
+| `aggregate_exceptions` | Group exception logs by fingerprint, returning frequency, first/last occurrence times, and representative samples |
 
-`summarize_logs` 和 `aggregate_exceptions` 在 Helios 进程内进行确定性计算，不调用大模型。所有工具都会受到服务端时间窗口、扫描条数、返回条数、响应体大小和超时上限约束，调用者不能通过请求扩大这些上限。
+`summarize_logs` and `aggregate_exceptions` perform deterministic computation inside the Helios process and do not call any large language model. All tools are constrained by server-side limits on the time window, entries scanned, entries returned, response body size, and timeouts — callers cannot raise these limits via requests.
 
-成功结果以 JSON `TextContent` 返回，兼容 MCP v1 客户端；响应预算按最终 JSON-RPC 字符串转义后的线缆大小预留空间。错误结果同时带有稳定的 Helios 错误码。
+Successful results are returned as JSON `TextContent`, compatible with MCP v1 clients; response budgets reserve space based on the wire size after final JSON-RPC string escaping. Error results carry stable Helios error codes.
 
-### 通用查询参数
+### Common Query Parameters
 
-四个工具共享以下筛选模型：
+The four tools share the following filtering model:
 
-| 参数 | 说明 |
+| Parameter | Description |
 | --- | --- |
-| `projectIds` | 可选项目 ID 数组，只能是 `HELIOS_DEFAULT_PROJECTS` 允许列表的子集 |
-| `startTime` / `endTime` | 带时区的 RFC 3339 绝对时间；`startTime` 与 `lookbackMinutes` 互斥 |
-| `lookbackMinutes` | 相对 `endTime` 或当前时间向前回溯的分钟数 |
-| `service` | `{ name, platform, namespace?, cluster?, location? }`；平台为 `auto`、`cloud_run`、`gke`、`app_engine` 或 `generic` |
-| `traceId` | 32 位十六进制 ID，或 `projects/PROJECT_ID/traces/TRACE_ID` |
-| `minSeverity` | `DEFAULT` 到 `EMERGENCY` 的最低严重级别 |
-| `resourceTypes` | Cloud Logging monitored resource type 数组 |
-| `searchText` | 编译为 Cloud Logging `SEARCH(...)` 的全文条件，最长 500 个字符 |
+| `projectIds` | Optional array of project IDs; must be a subset of the `HELIOS_DEFAULT_PROJECTS` allowlist |
+| `startTime` / `endTime` | Absolute RFC 3339 timestamps with timezone; `startTime` and `lookbackMinutes` are mutually exclusive |
+| `lookbackMinutes` | Minutes to look back relative to `endTime` or the current time |
+| `service` | `{ name, platform, namespace?, cluster?, location? }`; platform is `auto`, `cloud_run`, `gke`, `app_engine`, or `generic` |
+| `traceId` | 32-character hexadecimal ID, or `projects/PROJECT_ID/traces/TRACE_ID` |
+| `minSeverity` | Minimum severity level from `DEFAULT` to `EMERGENCY` |
+| `resourceTypes` | Array of Cloud Logging monitored resource types |
+| `searchText` | Full-text condition compiled to a Cloud Logging `SEARCH(...)`, up to 500 characters |
 
-工具专用参数：
+Tool-specific parameters:
 
-- `query_logs` 和 `get_trace_logs`：`limit`、`order`（`asc`/`desc`）、`pageToken`、`includePayload`；`get_trace_logs` 必须提供 `traceId`。
-- `summarize_logs`：`scanLimit`、`topServices`。
-- `aggregate_exceptions`：`scanLimit`、`includeNonErrorSeverity`、`groupLimit`、`samplesPerGroup`。
+- `query_logs` and `get_trace_logs`: `limit`, `order` (`asc`/`desc`), `pageToken`, `includePayload`; `get_trace_logs` requires `traceId`.
+- `summarize_logs`: `scanLimit`, `topServices`.
+- `aggregate_exceptions`: `scanLimit`, `includeNonErrorSeverity`, `groupLimit`, `samplesPerGroup`.
 
-未提供时间参数时默认查询最近 60 分钟。`query_logs` 默认返回 100 条、按时间倒序且不包含完整 payload；`get_trace_logs` 默认按时间正序。摘要默认最多列出 20 个服务；异常聚合默认只扫描 `ERROR` 及以上日志，最多返回 50 组、每组 3 个样本。继续分页时，将首个响应 `metadata.timeRange` 中的绝对 `startTime`、`endTime` 与 `nextPageToken` 一起原样传回，确保 Google 分页参数保持一致。若响应包含 `paginationInvalidated: true`，应使用更小的 `limit` 重试当前页，不能继续使用上游 Token。
+When no time parameters are provided, the default queries the last 60 minutes. `query_logs` returns 100 entries by default, in descending time order, without full payloads; `get_trace_logs` defaults to ascending order. Summaries list at most 20 services by default; exception aggregation scans only `ERROR`-and-above logs by default, returning at most 50 groups with 3 samples per group. When paginating, pass back the absolute `startTime` and `endTime` from the first response's `metadata.timeRange` together with `nextPageToken` as-is, so Google pagination parameters stay consistent. If a response contains `paginationInvalidated: true`, retry the current page with a smaller `limit` instead of continuing with the upstream token.
 
-例如，查询 Cloud Run 服务最近 30 分钟的错误日志：
+For example, to query the last 30 minutes of error logs for a Cloud Run service:
 
 ```json
 {
@@ -116,9 +118,9 @@ Node.js SEA 仍处于 Active development，并且产物与平台、架构绑定�
 }
 ```
 
-## 快速开始
+## Quick Start
 
-### 1. 安装和检查
+### 1. Install and Check
 
 ```powershell
 npm ci
@@ -127,66 +129,66 @@ npm test
 npm run build
 ```
 
-### 2. 启用 Cloud Logging API
+### 2. Enable the Cloud Logging API
 
 ```powershell
 $ProjectId = "my-gcp-project"
 gcloud services enable logging.googleapis.com --project $ProjectId
 ```
 
-### 3. 配置 ADC
+### 3. Configure ADC
 
-本地开发推荐使用用户 ADC：
+For local development, user ADC is recommended:
 
 ```powershell
 gcloud auth application-default login
 gcloud auth application-default set-quota-project $ProjectId
 ```
 
-这与 `gcloud auth login` 的 CLI 登录凭据不是同一套凭据。Helios 不需要也不推荐在 `.env` 中放置 Google 私钥。生产环境应使用运行平台附加的服务账号、Workload Identity 或 Workload Identity Federation；只有遗留环境才考虑服务账号密钥文件。
+These credentials are not the same as the CLI credentials from `gcloud auth login`. Helios does not need, and does not recommend, placing Google private keys in `.env`. Production environments should use the attached service account, Workload Identity, or Workload Identity Federation of the runtime platform; service account key files are a legacy-environment fallback only.
 
-如果进程环境中存在 `GOOGLE_APPLICATION_CREDENTIALS`，ADC 会优先使用该文件并覆盖本地用户 ADC。切换凭据后必须重启 Helios；排查时可通过 `npm run smoke:adc` 和 `npm run smoke:mcp` 确认实际项目及端到端读取能力。
+If `GOOGLE_APPLICATION_CREDENTIALS` exists in the process environment, ADC prefers that file and overrides local user ADC. Helios must be restarted after switching credentials; use `npm run smoke:adc` and `npm run smoke:mcp` to confirm the actual project and end-to-end read capability when troubleshooting.
 
-ADC 的官方查找顺序和配置方式见 [Application Default Credentials](https://cloud.google.com/docs/authentication/application-default-credentials)。
+See [Application Default Credentials](https://cloud.google.com/docs/authentication/application-default-credentials) for the official ADC lookup order and configuration methods.
 
-### 4. 创建本地配置
+### 4. Create Local Configuration
 
 ```powershell
 Copy-Item -LiteralPath ".env.example" -Destination ".env"
 ```
 
-至少修改 `HELIOS_DEFAULT_PROJECTS`。HTTP 模式还必须替换示例静态 Token，或切换到 OIDC。`.env` 已被 Git 和 Docker 构建上下文忽略，不要提交真实凭据。
+At minimum, modify `HELIOS_DEFAULT_PROJECTS`. For HTTP mode you must also replace the example static tokens or switch to OIDC. `.env` is ignored by both Git and the Docker build context; never commit real credentials.
 
-### 5. 启动
+### 5. Start
 
-STDIO：
+STDIO:
 
 ```powershell
 node --env-file=.env dist/index.js --transport stdio
 ```
 
-Streamable HTTP：
+Streamable HTTP:
 
 ```powershell
 node --env-file=.env dist/index.js --transport http
 ```
 
-默认 HTTP 地址为 `http://127.0.0.1:48080/mcp`。应用配置从进程环境读取；上面的 Node.js `--env-file` 参数和 Docker Compose 的 `env_file` 会加载 `.env`。直接使用 npm 启动脚本时，需要先由 IDE、进程管理器或 PowerShell 注入环境变量。
+The default HTTP address is `http://127.0.0.1:48080/mcp`. Application configuration is read from the process environment; the Node.js `--env-file` flag above and Docker Compose `env_file` both load `.env`. When using the npm start scripts directly, environment variables must be injected beforehand by your IDE, process manager, or PowerShell.
 
-开发模式：
+Development mode:
 
 ```powershell
 $env:HELIOS_DEFAULT_PROJECTS = "my-gcp-project"
 npm run dev -- --transport stdio
 ```
 
-CLI 参数 `--transport stdio|http` 的优先级高于 `HELIOS_TRANSPORT`。
+The CLI argument `--transport stdio|http` takes precedence over `HELIOS_TRANSPORT`.
 
-## MCP 客户端配置
+## MCP Client Configuration
 
 ### STDIO
 
-构建后，让 MCP 客户端执行 `node` 并传入 Helios 的绝对路径：
+After building, have your MCP client execute `node` with the absolute path to Helios:
 
 ```json
 {
@@ -206,47 +208,47 @@ CLI 参数 `--transport stdio|http` 的优先级高于 `HELIOS_TRANSPORT`。
 }
 ```
 
-使用 SEA Release 时，将 `command` 直接改为解压后的可执行文件绝对路径，并保留 `args: ["--transport", "stdio"]`；不再需要 `node` 或 `dist/index.js`。
+When using an SEA release, change `command` to the absolute path of the extracted executable and keep `args: ["--transport", "stdio"]`; `node` and `dist/index.js` are no longer needed.
 
-本地客户端进程需要能够继承 ADC。STDIO 模式没有额外的 MCP 身份认证层，其安全边界是本机账号、客户端配置和进程权限。协议输出只写入 `stdout`；诊断信息写入 `stderr`，以免破坏 MCP 消息流。
+The local client process must be able to inherit ADC. STDIO mode has no additional MCP authentication layer; its security boundary is the local account, client configuration, and process permissions. Protocol output goes to `stdout` only; diagnostics go to `stderr` to avoid breaking the MCP message stream.
 
 ### Streamable HTTP
 
-远程 MCP 客户端应配置：
+Remote MCP clients should configure:
 
-- URL：`http://127.0.0.1:48080/mcp`，生产环境必须使用 HTTPS。
-- Header：`Authorization: Bearer <token>`。
-- 浏览器客户端的 `Origin` 必须与 `HELIOS_HTTP_ALLOWED_ORIGINS` 的允许项精确匹配。
+- URL: `http://127.0.0.1:48080/mcp`; HTTPS is mandatory in production.
+- Header: `Authorization: Bearer <token>`.
+- Browser clients must send an `Origin` that exactly matches an entry in `HELIOS_HTTP_ALLOWED_ORIGINS`.
 
-HTTP 服务是无状态的：每个请求独立处理，不分配 MCP Session ID，不提供跨请求状态、断线恢复或服务端主动通知。日志查询是请求/响应型工作负载，因此该模式便于水平扩展。
+The HTTP service is stateless: each request is handled independently, with no MCP Session ID assignment, no cross-request state, no resumability, and no server-initiated notifications. Log querying is a request/response workload, so this mode scales horizontally with ease.
 
-HTTP 路由契约：
+HTTP route contract:
 
-| 路由 | 行为 |
+| Route | Behavior |
 | --- | --- |
-| `POST ${HELIOS_HTTP_PATH}` | 经过认证的无状态 Streamable HTTP MCP 请求 |
-| `GET ${HELIOS_HTTP_PATH}` | 认证后返回 `405 Method Not Allowed`，不建立 SSE Session |
-| `DELETE ${HELIOS_HTTP_PATH}` | 认证后返回 `405 Method Not Allowed`，没有可删除的 Session |
-| `GET /healthz` | 供编排器使用的轻量存活探针 |
-| `GET /readyz` | 供编排器使用的就绪探针 |
-| `GET /.well-known/oauth-protected-resource${HELIOS_HTTP_PATH}` | 仅 OIDC 模式发布的受保护资源元数据；默认路径为 `/.well-known/oauth-protected-resource/mcp` |
+| `POST ${HELIOS_HTTP_PATH}` | Authenticated stateless Streamable HTTP MCP request |
+| `GET ${HELIOS_HTTP_PATH}` | Returns `405 Method Not Allowed` after authentication; no SSE session is established |
+| `DELETE ${HELIOS_HTTP_PATH}` | Returns `405 Method Not Allowed` after authentication; there is no session to delete |
+| `GET /healthz` | Lightweight liveness probe for orchestrators |
+| `GET /readyz` | Readiness probe for orchestrators |
+| `GET /.well-known/oauth-protected-resource${HELIOS_HTTP_PATH}` | Protected resource metadata published in OIDC mode only; the default path is `/.well-known/oauth-protected-resource/mcp` |
 
-健康和 OIDC 元数据端点不返回日志内容或秘密。静态 Token 模式由客户端预配置 Token，不发布不可用的 OAuth discovery 挑战。只有 MCP POST 路由接受业务调用。
+Health and OIDC metadata endpoints return no log content or secrets. In static token mode the client is pre-provisioned with its token, and no unusable OAuth discovery challenge is published. Only the MCP POST route accepts business calls.
 
-## HTTP 身份认证
+## HTTP Authentication
 
-HTTP 模式不允许关闭认证。
+Authentication cannot be disabled in HTTP mode.
 
-### 静态 Bearer Token
+### Static Bearer Token
 
 ```dotenv
 HELIOS_HTTP_AUTH_MODE=static
 HELIOS_HTTP_STATIC_TOKENS_JSON={"local-operator":"replace-with-a-long-random-secret"}
 ```
 
-JSON 的键是调用者标识，值是至少 32 个字符的 Bearer Token。每个调用者使用不同的高熵随机 Token；通过 Secret Manager 或部署平台的 Secret 注入环境变量，定期轮换。不要把 Token 放在 URL、日志或源码中。
+The JSON keys are caller identities and the values are Bearer tokens of at least 32 characters. Use a different high-entropy random token per caller; inject them via Secret Manager or your deployment platform's secret mechanism, and rotate them regularly. Never put tokens in URLs, logs, or source code.
 
-静态模式适合本地和小规模受控网络。生产团队环境优先选择 OIDC，并在入口层配置 TLS、请求大小限制和速率限制。
+Static mode suits local and small-scale controlled networks. For production team environments, prefer OIDC, and configure TLS, request size limits, and rate limiting at the ingress layer.
 
 ### OIDC/JWKS
 
@@ -258,19 +260,19 @@ HELIOS_OIDC_JWKS_URI=https://issuer.example.com/.well-known/jwks.json
 HELIOS_OIDC_ALGORITHMS=RS256,ES256
 ```
 
-Helios 将传入 JWT 作为资源服务器进行校验，包括签名、允许的非对称算法、`iss`、`aud`、有效期，以及可选的必需 scope。`HELIOS_OIDC_AUDIENCE` 必须与 `HELIOS_HTTP_PUBLIC_URL` 完全一致。JWKS 地址必须使用可信 HTTPS 端点，并需要从运行环境出站访问；只有显式 loopback 地址可使用 HTTP。Helios 不负责用户登录、颁发 Token、动态客户端注册或完整 OAuth 授权服务器能力；Token 由现有身份提供商签发。
+Helios validates incoming JWTs as a resource server, including signature, allowed asymmetric algorithms, `iss`, `aud`, validity period, and optional required scopes. `HELIOS_OIDC_AUDIENCE` must exactly match `HELIOS_HTTP_PUBLIC_URL`. The JWKS URL must be a trusted HTTPS endpoint reachable via outbound access from the runtime environment; only explicit loopback addresses may use HTTP. Helios does not handle user login, token issuance, dynamic client registration, or full OAuth authorization server capabilities; tokens are issued by your existing identity provider.
 
-## IAM 最小权限
+## IAM Least Privilege
 
-运行 Helios 的 ADC 主体需要在每个目标项目上拥有读取日志的权限：
+The ADC principal running Helios needs log read permission on each target project:
 
-- 一般日志：`roles/logging.viewer`（Logs Viewer）。
-- 需要读取 Data Access 审计日志时：仅向确有需要的主体授予 `roles/logging.privateLogViewer`（Private Logs Viewer）。
-- 使用限定 Log View 的组织模型时，Google Cloud 提供 `roles/logging.viewAccessor`；但当前 Helios 只接受项目 ID，并把项目作为 `entries.list` 的 resource name，尚不接受 Bucket/View resource name，因此该角色不是当前版本的直接替代方案。
+- General logs: `roles/logging.viewer` (Logs Viewer).
+- To read Data Access audit logs: grant `roles/logging.privateLogViewer` (Private Logs Viewer) only to principals that genuinely need it.
+- For organization models with scoped Log Views, Google Cloud offers `roles/logging.viewAccessor`; however, Helios currently accepts project IDs only and uses the project as the `entries.list` resource name — it does not yet accept Bucket/View resource names — so that role is not a direct substitute in the current version.
 
-不要授予 `Editor`、`Owner` 或日志写入角色。跨项目查询必须逐项目授权。用户 ADC 的 quota project 还可能需要 `serviceusage.services.use` 权限；出现 `USER_PROJECT_DENIED` 时应检查 quota project 和 Service Usage Consumer 权限。
+Do not grant `Editor`, `Owner`, or log-writing roles. Cross-project queries must be authorized per project. The user ADC's quota project may also need `serviceusage.services.use` permission; when you see `USER_PROJECT_DENIED`, check the quota project and Service Usage Consumer permissions.
 
-示例，仅授予一般日志读取权限：
+Example, granting general log read permission only:
 
 ```powershell
 $ProjectId = "my-gcp-project"
@@ -278,48 +280,48 @@ $RuntimeServiceAccount = "helios@$ProjectId.iam.gserviceaccount.com"
 gcloud projects add-iam-policy-binding $ProjectId --member="serviceAccount:$RuntimeServiceAccount" --role="roles/logging.viewer"
 ```
 
-完整角色权限以 [Cloud Logging IAM roles](https://cloud.google.com/iam/docs/roles-permissions/logging) 为准。
+For the complete role permissions, refer to [Cloud Logging IAM roles](https://cloud.google.com/iam/docs/roles-permissions/logging).
 
-## 配置
+## Configuration
 
-| 环境变量 | 默认值 | 说明 |
+| Environment variable | Default | Description |
 | --- | --- | --- |
-| `HELIOS_DEFAULT_PROJECTS` | 无 | 逗号分隔的 GCP 项目允许列表；未提供时尝试从 ADC/环境发现项目 |
-| `HELIOS_MAX_QUERY_WINDOW_HOURS` | `168` | 单次查询允许的最大时间窗口 |
-| `HELIOS_MAX_QUERY_ENTRIES` | `200` | 查询工具最多返回的日志条数；可配置上限为 1000 |
-| `HELIOS_MAX_SCAN_ENTRIES` | `5000` | 摘要和聚合最多扫描的日志条数 |
-| `HELIOS_MAX_RESPONSE_BYTES` | `1000000` | MCP 工具结果的最大序列化字节数 |
-| `HELIOS_MAX_ENTRY_BYTES` | `16000` | 单条日志超过该序列化阈值时压缩为排查所需字段 |
-| `HELIOS_QUERY_TIMEOUT_MS` | `30000` | 单次 Cloud Logging 查询超时 |
-| `HELIOS_REDACT_KEYS` | 内置敏感键 | 追加的逗号分隔 payload 脱敏键 |
-| `HELIOS_LOG_LEVEL` | `info` | `debug`、`info`、`warn` 或 `error` |
-| `HELIOS_MAX_CONCURRENT_QUERIES` | `4` | STDIO 与 HTTP 共享的全局查询并发上限 |
-| `HELIOS_RATE_LIMIT_REQUESTS` | `60` | 每个身份、每个工具在固定窗口内的调用上限 |
-| `HELIOS_RATE_LIMIT_WINDOW_SECONDS` | `60` | 工具调用限流窗口秒数 |
-| `HELIOS_TRANSPORT` | `stdio` | `stdio` 或 `http` |
-| `HELIOS_HTTP_HOST` | `127.0.0.1` | HTTP 监听地址；容器内需要 `0.0.0.0` |
-| `HELIOS_HTTP_PORT` | `48080` | HTTP 监听端口 |
-| `HELIOS_HTTP_PATH` | `/mcp` | Streamable HTTP 路径 |
-| `HELIOS_HTTP_PUBLIC_URL` | 由 host/port/path 生成 | 对外公开的 MCP URL；绑定全部网卡时必需 |
-| `HELIOS_HTTP_ALLOWED_HOSTS` | 无 | 逗号分隔 Host 允许列表；绑定全部网卡时必需 |
-| `HELIOS_HTTP_ALLOWED_ORIGINS` | 空 | 逗号分隔的浏览器 Origin 允许列表；模板允许本地 Origin |
-| `HELIOS_HTTP_PREAUTH_RATE_LIMIT_REQUESTS` | `120` | 每个来源地址在认证前的 HTTP 请求上限 |
-| `HELIOS_HTTP_PREAUTH_RATE_LIMIT_WINDOW_SECONDS` | `60` | HTTP 认证前限流窗口秒数 |
-| `HELIOS_HTTP_AUTH_MODE` | 无 | 必需的 HTTP 认证模式：`static` 或 `oidc` |
-| `HELIOS_HTTP_STATIC_TOKENS_JSON` | 无 | 调用者标识到 Token 的 JSON 映射 |
-| `HELIOS_OIDC_ISSUER` | 无 | OIDC Token 的预期签发者 |
-| `HELIOS_OIDC_AUDIENCE` | 无 | OIDC Token 的预期受众 |
-| `HELIOS_OIDC_JWKS_URI` | 无 | 签名公钥 JWKS 地址 |
-| `HELIOS_OIDC_ALGORITHMS` | `RS256,ES256` | 允许的 JWT 签名算法 |
-| `HELIOS_OIDC_REQUIRED_SCOPES` | 无 | JWT 必须包含的逗号分隔 scope |
+| `HELIOS_DEFAULT_PROJECTS` | none | Comma-separated GCP project allowlist; if absent, projects are discovered from ADC/environment |
+| `HELIOS_MAX_QUERY_WINDOW_HOURS` | `168` | Maximum time window per query |
+| `HELIOS_MAX_QUERY_ENTRIES` | `200` | Maximum log entries returned by query tools; configurable up to 1000 |
+| `HELIOS_MAX_SCAN_ENTRIES` | `5000` | Maximum log entries scanned by summaries and aggregation |
+| `HELIOS_MAX_RESPONSE_BYTES` | `1000000` | Maximum serialized byte size of an MCP tool result |
+| `HELIOS_MAX_ENTRY_BYTES` | `16000` | Entries exceeding this serialized threshold are condensed to troubleshooting-relevant fields |
+| `HELIOS_QUERY_TIMEOUT_MS` | `30000` | Timeout for a single Cloud Logging query |
+| `HELIOS_REDACT_KEYS` | built-in sensitive keys | Additional comma-separated payload redaction keys |
+| `HELIOS_LOG_LEVEL` | `info` | `debug`, `info`, `warn`, or `error` |
+| `HELIOS_MAX_CONCURRENT_QUERIES` | `4` | Global query concurrency cap shared by STDIO and HTTP |
+| `HELIOS_RATE_LIMIT_REQUESTS` | `60` | Per-identity, per-tool call cap within a fixed window |
+| `HELIOS_RATE_LIMIT_WINDOW_SECONDS` | `60` | Tool call rate-limit window in seconds |
+| `HELIOS_TRANSPORT` | `stdio` | `stdio` or `http` |
+| `HELIOS_HTTP_HOST` | `127.0.0.1` | HTTP listen address; containers need `0.0.0.0` |
+| `HELIOS_HTTP_PORT` | `48080` | HTTP listen port |
+| `HELIOS_HTTP_PATH` | `/mcp` | Streamable HTTP path |
+| `HELIOS_HTTP_PUBLIC_URL` | derived from host/port/path | Publicly exposed MCP URL; required when binding all interfaces |
+| `HELIOS_HTTP_ALLOWED_HOSTS` | none | Comma-separated Host allowlist; required when binding all interfaces |
+| `HELIOS_HTTP_ALLOWED_ORIGINS` | empty | Comma-separated browser Origin allowlist; the template allows local origins |
+| `HELIOS_HTTP_PREAUTH_RATE_LIMIT_REQUESTS` | `120` | Per-source-address HTTP request cap before authentication |
+| `HELIOS_HTTP_PREAUTH_RATE_LIMIT_WINDOW_SECONDS` | `60` | Pre-auth HTTP rate-limit window in seconds |
+| `HELIOS_HTTP_AUTH_MODE` | none | Required HTTP auth mode: `static` or `oidc` |
+| `HELIOS_HTTP_STATIC_TOKENS_JSON` | none | JSON mapping of caller identity to token |
+| `HELIOS_OIDC_ISSUER` | none | Expected issuer of OIDC tokens |
+| `HELIOS_OIDC_AUDIENCE` | none | Expected audience of OIDC tokens |
+| `HELIOS_OIDC_JWKS_URI` | none | JWKS URL of the signing public keys |
+| `HELIOS_OIDC_ALGORITHMS` | `RS256,ES256` | Allowed JWT signature algorithms |
+| `HELIOS_OIDC_REQUIRED_SCOPES` | none | Comma-separated scopes the JWT must contain |
 
-以 `.env.example` 为完整模板。启动时会严格校验配置，HTTP 认证配置缺失或不安全时进程应直接失败。
+Use `.env.example` as the complete template. Configuration is strictly validated at startup; the process should fail fast when HTTP authentication is missing or insecure.
 
-## Docker 部署
+## Docker Deployment
 
-镜像默认为 HTTP 模式，以非 root 用户运行，并使用只包含生产依赖的多阶段构建。
+The image defaults to HTTP mode, runs as a non-root user, and uses a multi-stage build containing production dependencies only.
 
-先完成用户 ADC，然后配置 Compose 使用的宿主机凭据路径：
+First complete user ADC, then configure the host credential path used by Compose:
 
 ```powershell
 gcloud auth application-default login
@@ -328,40 +330,40 @@ Copy-Item -LiteralPath ".env.example" -Destination ".env"
 docker compose up --build
 ```
 
-Compose 将 ADC 文件作为只读 Docker Secret 挂载到 `/run/secrets/gcp_adc`。默认端口只发布到宿主机 `127.0.0.1`。停止服务：
+Compose mounts the ADC file as a read-only Docker Secret at `/run/secrets/gcp_adc`. The default port is published to the host's `127.0.0.1` only. Stop the service with:
 
 ```powershell
 docker compose down
 ```
 
-直接构建和运行 STDIO 镜像：
+Build and run the STDIO image directly:
 
 ```powershell
 docker build --tag helios-cloud-logging-mcp:local .
 docker run --rm --interactive --env HELIOS_DEFAULT_PROJECTS=my-gcp-project --mount "type=bind,source=$env:HELIOS_ADC_FILE,target=/run/secrets/gcp_adc,readonly" --env GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/gcp_adc helios-cloud-logging-mcp:local --transport stdio
 ```
 
-在 Cloud Run、GKE 或其他云运行环境中，不要挂载本地 ADC 文件；将最小权限服务账号附加到工作负载，并让 ADC 自动使用元数据服务或 Workload Identity。
+On Cloud Run, GKE, or other cloud runtimes, do not mount a local ADC file; attach a least-privilege service account to the workload and let ADC use the metadata server or Workload Identity automatically.
 
-## 查询成本和安全边界
+## Query Cost and Security Boundaries
 
-- 默认查询窗口不超过 7 天、返回不超过 200 条、聚合扫描不超过 5000 条、响应不超过约 1 MB。调低这些值可以进一步保护延迟、Cloud Logging API 配额和模型上下文。
-- 这些上限不是费用保证。日志摄取、保留、路由和 Log Analytics 等费用取决于 Google Cloud 配置；部署前查看 [Cloud Logging pricing](https://cloud.google.com/logging/pricing) 和 [quotas and limits](https://cloud.google.com/logging/quotas)。
-- 使用尽可能窄的项目、时间范围、服务名、Trace ID、严重级别和资源类型。宽泛的全文搜索可能查询较慢，并消耗更多 API 配额。
-- 日志可能包含个人信息、访问 Token 或业务秘密。Helios 不会自动判断所有敏感字段；调用者和下游 MCP 客户端必须实施数据最小化、脱敏和访问审计。
-- 服务端上限触发时，摘要和异常聚合是受限样本的结果，而不是整个时间范围的精确全量统计。调用方应检查返回的截断元数据。
+- By default, queries cover at most 7 days, return at most 200 entries, aggregation scans at most 5000 entries, and responses stay under roughly 1 MB. Lower these values to further protect latency, Cloud Logging API quota, and model context.
+- These caps are not a cost guarantee. Log ingestion, retention, routing, and Log Analytics costs depend on your Google Cloud configuration; review [Cloud Logging pricing](https://cloud.google.com/logging/pricing) and [quotas and limits](https://cloud.google.com/logging/quotas) before deploying.
+- Use the narrowest possible project, time range, service name, Trace ID, severity, and resource types. Broad full-text searches can be slow and consume more API quota.
+- Logs may contain personal information, access tokens, or business secrets. Helios does not automatically identify every sensitive field; callers and downstream MCP clients must enforce data minimization, redaction, and access auditing.
+- When server-side caps are hit, summaries and exception aggregation reflect a bounded sample, not an exact full statistic over the entire time range. Callers should check the returned truncation metadata.
 
-## 已知限制
+## Known Limitations
 
-- 不提供实时 tail、订阅、告警规则管理、日志写入或删除。
-- 查询范围当前只接受最多 20 个项目 ID，不接受 organization、folder、billing account、Log Bucket 或 Log View resource name。
-- 无状态 HTTP 不支持跨请求 Session、可恢复 SSE 和服务器主动通知。
-- Trace 查询依赖日志条目正确填充 `trace` 字段；只有文本中出现 Trace ID 的日志不会自动成为关联日志。
-- 服务名匹配依赖受支持的资源标签或结构化字段；命名不一致时可改用 `resourceTypes` 和 `searchText` 缩小查询，当前版本不接受任意原始 Logging filter。
-- 异常指纹是启发式归一化，动态 ID、行号或包装异常可能造成拆分或合并误差。
-- Cloud Logging 日志到达可能延迟或乱序，临近当前时间的结果可能尚不完整。
+- No real-time tailing, subscriptions, alert rule management, log writing, or deletion.
+- Query scope currently accepts at most 20 project IDs; organization, folder, billing account, Log Bucket, and Log View resource names are not accepted.
+- Stateless HTTP does not support cross-request sessions, resumable SSE, or server-initiated notifications.
+- Trace queries rely on log entries properly populating the `trace` field; logs that merely mention a Trace ID in their text are not automatically treated as associated logs.
+- Service name matching depends on supported resource labels or structured fields; when naming is inconsistent, narrow the query with `resourceTypes` and `searchText` instead — the current version does not accept arbitrary raw Logging filters.
+- Exception fingerprints use heuristic normalization; dynamic IDs, line numbers, or wrapped exceptions may cause splits or merges.
+- Cloud Logging entries may arrive delayed or out of order; results near the current time may be incomplete.
 
-## 开发命令
+## Development Commands
 
 ```powershell
 npm run check
@@ -376,19 +378,19 @@ npm run start:stdio
 npm run start:http
 ```
 
-`npm run smoke:adc` 使用 ADC 对其默认项目执行一次只读查询，时间窗为最近 5 分钟且最多读取 1 条；脚本只输出项目 ID 和返回条数，不输出日志 payload、访问令牌或凭据。它需要 `logging.logEntries.list` 权限。
+`npm run smoke:adc` performs one read-only query against its default project using ADC, with a 5-minute window and at most 1 entry; the script outputs only the project ID and returned entry count — no log payloads, access tokens, or credentials. It requires the `logging.logEntries.list` permission.
 
-完成构建后，`npm run smoke:mcp` 会分别启动生产构建的 STDIO 与本地临时 HTTP 服务，通过真实 MCP 客户端各执行一次同样的只读查询；HTTP 使用仅存在于子进程内的随机 Bearer Token。输出只包含项目、工具数量和返回条数。
+After building, `npm run smoke:mcp` launches both the production STDIO build and a local temporary HTTP service, executing the same read-only query through each with a real MCP client; HTTP uses a random Bearer token that exists only within the child process. Output contains only the project, tool count, and returned entry count.
 
-`npm run smoke:sea -- <path>` 会验证 SEA 的帮助输出、版本、STDIO/HTTP MCP 初始化、工具列表和健康端点，并将 ADC 指向故意不存在的文件来覆盖 Google 客户端的受控错误路径；它不会连接 Cloud Logging 或读取真实日志。
+`npm run smoke:sea -- <path>` verifies the SEA executable's help output, version, STDIO/HTTP MCP initialization, tool listing, and health endpoints, and points ADC at a deliberately non-existent file to cover the Google client's controlled error path; it does not connect to Cloud Logging or read real logs.
 
-## 分支与发布
+## Branching and Releases
 
-分支、Pull Request、提交格式和发布流程见 [CONTRIBUTING.md](CONTRIBUTING.md)。项目使用单主干 GitHub Flow：`main` 保持可发布，功能通过短生命周期分支和 Pull Request 合并。将与 `package.json` 版本一致的 SemVer 标签（例如 `v0.2.0`）推送到 GitHub 后，Release 工作流会重新验证、在原生 runner 上构建并冒烟测试各平台 SEA、生成校验和，然后自动创建 GitHub Release。
+See [CONTRIBUTING.md](CONTRIBUTING.md) for branching, pull requests, commit format, and the release process. The project uses single-trunk GitHub Flow: `main` stays releasable, and features merge via short-lived branches and pull requests. After pushing a SemVer tag matching the `package.json` version (e.g. `v0.2.0`) to GitHub, the Release workflow re-validates, builds and smoke-tests each platform's SEA on native runners, generates checksums, and then creates the GitHub Release automatically.
 
-架构、安全模型和验证策略见 [docs/architecture.md](docs/architecture.md)。
+See [docs/architecture.md](docs/architecture.md) for architecture, the security model, and the verification strategy.
 
-## 官方参考
+## Official References
 
 - [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk)
 - [MCP transport specification (2025-11-25)](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports)
